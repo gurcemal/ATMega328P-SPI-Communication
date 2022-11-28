@@ -1,0 +1,49 @@
+/*Arduino Mega / Controller Device
+   MOSI     -> D51  Output  PINB2
+   MISO     -> D50  Input   PINB3
+   SCK      -> D52  Output  PINB1
+   CS       -> D53  Output  PINB0
+*/
+
+#define MOSI_pin 2
+#define SCK_pin 1
+#define CS_pin 0
+#define MISO_pin 3
+
+uint8_t received_data, transmitted_data = 0;
+long previous_time = 0;
+
+void setup() {
+  Serial.begin(9600);
+  DDRB |= (1 << CS_pin) | (1 << MOSI_pin) | (1 << SCK_pin);   // set as output
+  SPCR  |= 0b01010000 ;   //spi enable, set master
+  PORTB |= (1 << CS_pin);   //set CS pin high
+}
+
+void loop() {
+  if (millis() - previous_time >= 100) {    //cycle time 100ms
+    PORTB &= (~(1 << CS_pin));      //set CS pin low
+
+    transmitted_data = transmitted_data + 5;  //add +5 as counter
+    if (transmitted_data >= 255) {
+      transmitted_data = 0;
+    }
+
+    SPDR = transmitted_data;        // move data in SPDR register
+    while (!(SPSR & (1 << SPIF)));  // wait for transmission complete
+
+
+    while (!(SPSR & (1 << SPIF)));    // wait for reception complete
+    received_data = SPDR;           // move data from SPDR register
+
+    Serial.print("Transmitted Data: ");
+    Serial.print(transmitted_data);
+    Serial.print("    ");
+    Serial.print("Received Data: ");
+    Serial.println(received_data);
+
+    PORTB |= (1 << CS_pin);   //set CS pin high
+    
+    previous_time = millis();   // keep present tiime
+  }
+}
