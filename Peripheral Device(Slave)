@@ -1,0 +1,49 @@
+/*Arduino Nano  / Peripheral Device
+   MOSI     -> D11  Input PINB3
+   MISO     -> D12  Output PINB4
+   SCK      -> D13  Input PINB5
+   CS       -> D10  Input PINB2
+*/
+
+#define MISO_pin 4
+#define CS_pin 2
+#define SCK_pin 5
+#define MOSI_pin 3
+
+uint8_t received_data, transmitted_data;
+bool CSpin_value = HIGH;
+
+void setup() {
+  Serial.begin(9600);
+  DDRB |= (1 << MISO_pin);    // set as output
+  SPCR  |= 0b11000000 ;   // spi enable, spi interrupt enable
+  sei();    // global interrupt enable
+}
+
+void loop() {
+}
+
+ISR(SPI_STC_vect) {   // SPI Transfer Complete Handler
+
+  cli();  // global interrupt disable
+
+  CSpin_value = (PINB & (1 << CS_pin)); // read cspin value and move it
+  
+  while (CSpin_value == false) {
+
+    while (!(SPSR & (1 << SPIF)));  // wait for reception complete
+    received_data = SPDR;   // move data from SPDR register
+
+    transmitted_data = received_data / 5;
+    
+    SPDR = transmitted_data;    // move data in SPDR register
+    while (!(SPSR & (1 << SPIF)));    // wait for transmission complete
+
+    Serial.print("Received Data: ");
+    Serial.print(received_data);
+    Serial.print("    ");
+    Serial.print("Transmitted Data: ");
+    Serial.println(transmitted_data);
+  }
+  sei();    // global interrupt enable
+}
